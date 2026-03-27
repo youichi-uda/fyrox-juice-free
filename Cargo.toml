@@ -1,0 +1,17 @@
+[package]
+name = "fyrox-juice-free"
+version = "0.1.0"
+edition = "2021"
+description = "Game juice effects pack for the Fyrox engine - screen shake, hit stop, tweens, and more (free version)"
+license = "MIT"
+keywords = ["game-juice", "effects", "gamedev", "fyrox"]
+categories = ["game-development"]
+repository = "https://github.com/youichi-uda/fyrox-juice-free"
+readme = "README.md"
+
+[dependencies]
+fyrox = "1.0"
+
+[[example]]
+name = "basic"
+path = "examples/basic.rs"
