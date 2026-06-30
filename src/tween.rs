@@ -7,7 +7,9 @@ use crate::easing::EasingFunction;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
+        color::Color,
         impl_component_provider,
+        pool::Handle,
         reflect::prelude::*,
         uuid_provider,
         variable::InheritableVariable,
@@ -15,6 +17,7 @@ use fyrox::{
     },
     plugin::error::GameResult,
     graph::SceneGraph,
+    scene::{dim2::rectangle::Rectangle, graph::Graph, node::Node, sprite::Sprite},
     script::{ScriptContext, ScriptMessageContext, ScriptMessagePayload, ScriptTrait},
 };
 
@@ -426,5 +429,159 @@ impl TweenRotation {
         *self.state.loop_mode = *self.loop_mode;
         *self.state.auto_play = *self.auto_play;
         *self.state.delay = *self.delay;
+    }
+}
+
+// ─── TweenColor ───
+
+/// Per-channel linear interpolation in 8-bit RGBA. `t` is clamped to [0, 1].
+///
+/// This mirrors `sprite_flash::lerp_color` and is kept inline so `tween` does
+/// not need a public re-export from `sprite_flash`.
+fn lerp_color(a: Color, b: Color, t: f32) -> Color {
+    let t = t.clamp(0.0, 1.0);
+    Color::from_rgba(
+        (a.r as f32 + (b.r as f32 - a.r as f32) * t) as u8,
+        (a.g as f32 + (b.g as f32 - a.g as f32) * t) as u8,
+        (a.b as f32 + (b.b as f32 - a.b as f32) * t) as u8,
+        (a.a as f32 + (b.a as f32 - a.a as f32) * t) as u8,
+    )
+}
+
+fn set_color(graph: &mut Graph, handle: Handle<Node>, color: Color) {
+    let node = &mut graph[handle];
+    if let Some(sprite) = node.cast_mut::<Sprite>() {
+        sprite.set_color(color);
+    } else if let Some(rect) = node.cast_mut::<Rectangle>() {
+        rect.set_color(color);
+    }
+}
+
+/// Message to control [`TweenColor`]. Reuses [`TweenMessage`] since the
+/// playback controls (Play/Pause/Resume/Stop/Reverse) are identical to the
+/// other tween scripts; the dedicated alias documents the binding.
+pub type TweenColorMessage = TweenMessage;
+
+/// Tweens the color of a `Sprite` or `Rectangle` node from `start_color` to
+/// `end_color`.
+///
+/// Mirrors [`TweenPosition`] / [`TweenScale`] / [`TweenRotation`]: same
+/// playback/loop/easing semantics, same auto-play behavior, same message API.
+/// Works with the same node types as [`crate::sprite_flash::SpriteFlash`]
+/// (Sprite and Rectangle).
+#[derive(Visit, Reflect, Clone, Debug)]
+pub struct TweenColor {
+    /// Color at t=0.
+    #[visit(optional)]
+    pub start_color: InheritableVariable<Color>,
+    /// Color at t=1.
+    #[visit(optional)]
+    pub end_color: InheritableVariable<Color>,
+
+    #[visit(optional)]
+    pub duration: InheritableVariable<f32>,
+    #[visit(optional)]
+    pub easing: InheritableVariable<EasingFunction>,
+    #[visit(optional)]
+    pub loop_mode: InheritableVariable<TweenLoop>,
+    /// If true, plays automatically on init.
+    #[visit(optional)]
+    pub auto_play: InheritableVariable<bool>,
+    /// Delay before starting (seconds).
+    #[visit(optional)]
+    pub delay: InheritableVariable<f32>,
+
+    #[reflect(hidden)]
+    #[visit(skip)]
+    state: TweenState,
+}
+
+impl Default for TweenColor {
+    fn default() -> Self {
+        Self {
+            start_color: Color::WHITE.into(),
+            end_color: Color::TRANSPARENT.into(),
+            duration: 0.5.into(),
+            easing: EasingFunction::EaseOutQuad.into(),
+            loop_mode: TweenLoop::Once.into(),
+            auto_play: true.into(),
+            delay: 0.0.into(),
+            state: TweenState::default(),
+        }
+    }
+}
+
+impl_component_provider!(TweenColor);
+uuid_provider!(TweenColor = "c9d0e1f2-9999-aaaa-bbbb-223344556677");
+
+impl ScriptTrait for TweenColor {
+    fn on_init(&mut self, context: &mut ScriptContext) -> GameResult {
+        self.sync_state();
+        self.state.init();
+        context
+            .message_dispatcher
+            .subscribe_to::<TweenMessage>(context.handle);
+        Ok(())
+    }
+
+    fn on_message(
+        &mut self,
+        message: &mut dyn ScriptMessagePayload,
+        _ctx: &mut ScriptMessageContext,
+    ) -> GameResult {
+        self.sync_state();
+        self.state.handle_message(message);
+        Ok(())
+    }
+
+    fn on_update(&mut self, context: &mut ScriptContext) -> GameResult {
+        if let Some(t) = self.state.tick(context.dt) {
+            let color = lerp_color(*self.start_color, *self.end_color, t);
+            set_color(&mut context.scene.graph, context.handle, color);
+        }
+        Ok(())
+    }
+}
+
+impl TweenColor {
+    fn sync_state(&mut self) {
+        *self.state.duration = *self.duration;
+        *self.state.easing = *self.easing;
+        *self.state.loop_mode = *self.loop_mode;
+        *self.state.auto_play = *self.auto_play;
+        *self.state.delay = *self.delay;
+    }
+}
+
+#[cfg(test)]
+mod tween_color_tests {
+    use super::*;
+
+    #[test]
+    fn lerp_color_interpolates_each_channel_and_clamps_t() {
+        // Endpoints: t=0 -> a, t=1 -> b. Channels interpolate independently
+        // and t is clamped to [0, 1].
+        let a = Color::from_rgba(0, 0, 0, 255);
+        let b = Color::from_rgba(200, 100, 50, 0);
+
+        let start = lerp_color(a, b, 0.0);
+        assert_eq!((start.r, start.g, start.b, start.a), (0, 0, 0, 255));
+
+        let end = lerp_color(a, b, 1.0);
+        assert_eq!((end.r, end.g, end.b, end.a), (200, 100, 50, 0));
+
+        // Midpoint: each channel sits halfway.
+        let mid = lerp_color(a, b, 0.5);
+        assert_eq!(mid.r, 100);
+        assert_eq!(mid.g, 50);
+        assert_eq!(mid.b, 25);
+        // Alpha goes 255 -> 0 so midpoint is 127 (floor of 127.5 via as u8).
+        assert_eq!(mid.a, 127);
+
+        // Out-of-range t is clamped, not extrapolated.
+        let below = lerp_color(a, b, -1.0);
+        assert_eq!((below.r, below.g, below.b, below.a), (0, 0, 0, 255));
+        let above = lerp_color(a, b, 2.0);
+        assert_eq!((above.r, above.g, above.b, above.a), (200, 100, 50, 0));
     }
 }

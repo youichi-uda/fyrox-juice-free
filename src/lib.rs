@@ -27,7 +27,7 @@ pub use camera_zoom_pulse::CameraZoomPulse;
 pub use smooth_camera_follow::SmoothCameraFollow;
 pub use hit_stop::HitStop;
 pub use slow_motion::SlowMotion;
-pub use tween::{TweenPosition, TweenScale, TweenRotation};
+pub use tween::{TweenColor, TweenPosition, TweenRotation, TweenScale};
 pub use squash_and_stretch::SquashAndStretch;
 pub use pulse::Pulse;
 pub use bounce::Bounce;
@@ -66,6 +66,7 @@ pub fn register(container: &ScriptConstructorContainer) {
     container.add::<TweenPosition>("Juice: Tween Position");
     container.add::<TweenScale>("Juice: Tween Scale");
     container.add::<TweenRotation>("Juice: Tween Rotation");
+    container.add::<TweenColor>("Juice: Tween Color");
     container.add::<SquashAndStretch>("Juice: Squash and Stretch");
     container.add::<Pulse>("Juice: Pulse");
     container.add::<Bounce>("Juice: Bounce");
