@@ -33,6 +33,77 @@ pub enum EasingFunction {
 }
 
 impl EasingFunction {
+    /// All 22 easing functions in canonical (declaration) order.
+    ///
+    /// Useful for iterating over every variant in tests, UI dropdowns, or
+    /// preset capture/round-trip logic without manually maintaining a list.
+    pub const fn all() -> [Self; 22] {
+        [
+            Self::Linear,
+            Self::EaseInQuad,
+            Self::EaseOutQuad,
+            Self::EaseInOutQuad,
+            Self::EaseInCubic,
+            Self::EaseOutCubic,
+            Self::EaseInOutCubic,
+            Self::EaseInElastic,
+            Self::EaseOutElastic,
+            Self::EaseInOutElastic,
+            Self::EaseInBack,
+            Self::EaseOutBack,
+            Self::EaseInOutBack,
+            Self::EaseInBounce,
+            Self::EaseOutBounce,
+            Self::EaseInOutBounce,
+            Self::EaseInSine,
+            Self::EaseOutSine,
+            Self::EaseInOutSine,
+            Self::EaseInExpo,
+            Self::EaseOutExpo,
+            Self::EaseInOutExpo,
+        ]
+    }
+
+    /// Parse from a PascalCase or kebab-case name.
+    ///
+    /// Accepts both `"EaseOutElastic"` (matching the Rust variant name, as used
+    /// by `juice-pro` preset RON files) and `"ease-out-elastic"` (kebab-case,
+    /// friendlier for hand-edited config). Returns `None` for unknown names so
+    /// callers can surface a clear error instead of silently picking a wrong
+    /// curve.
+    ///
+    /// This is an inherent method that returns `Option<Self>` rather than the
+    /// `FromStr` trait (which returns `Result`) because the only failure mode
+    /// is "unknown name" and callers consistently want an `Option`.
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(name: &str) -> Option<Self> {
+        Some(match name {
+            "Linear" | "linear" => Self::Linear,
+            "EaseInQuad" | "ease-in-quad" => Self::EaseInQuad,
+            "EaseOutQuad" | "ease-out-quad" => Self::EaseOutQuad,
+            "EaseInOutQuad" | "ease-in-out-quad" => Self::EaseInOutQuad,
+            "EaseInCubic" | "ease-in-cubic" => Self::EaseInCubic,
+            "EaseOutCubic" | "ease-out-cubic" => Self::EaseOutCubic,
+            "EaseInOutCubic" | "ease-in-out-cubic" => Self::EaseInOutCubic,
+            "EaseInElastic" | "ease-in-elastic" => Self::EaseInElastic,
+            "EaseOutElastic" | "ease-out-elastic" => Self::EaseOutElastic,
+            "EaseInOutElastic" | "ease-in-out-elastic" => Self::EaseInOutElastic,
+            "EaseInBack" | "ease-in-back" => Self::EaseInBack,
+            "EaseOutBack" | "ease-out-back" => Self::EaseOutBack,
+            "EaseInOutBack" | "ease-in-out-back" => Self::EaseInOutBack,
+            "EaseInBounce" | "ease-in-bounce" => Self::EaseInBounce,
+            "EaseOutBounce" | "ease-out-bounce" => Self::EaseOutBounce,
+            "EaseInOutBounce" | "ease-in-out-bounce" => Self::EaseInOutBounce,
+            "EaseInSine" | "ease-in-sine" => Self::EaseInSine,
+            "EaseOutSine" | "ease-out-sine" => Self::EaseOutSine,
+            "EaseInOutSine" | "ease-in-out-sine" => Self::EaseInOutSine,
+            "EaseInExpo" | "ease-in-expo" => Self::EaseInExpo,
+            "EaseOutExpo" | "ease-out-expo" => Self::EaseOutExpo,
+            "EaseInOutExpo" | "ease-in-out-expo" => Self::EaseInOutExpo,
+            _ => return None,
+        })
+    }
+
     /// Evaluate the easing function at parameter `t` (0.0 to 1.0).
     pub fn evaluate(self, t: f32) -> f32 {
         let t = t.clamp(0.0, 1.0);
@@ -163,30 +234,7 @@ mod tests {
     use super::*;
 
     /// All 22 easing functions, used to assert universal boundary conditions.
-    const ALL: [EasingFunction; 22] = [
-        EasingFunction::Linear,
-        EasingFunction::EaseInQuad,
-        EasingFunction::EaseOutQuad,
-        EasingFunction::EaseInOutQuad,
-        EasingFunction::EaseInCubic,
-        EasingFunction::EaseOutCubic,
-        EasingFunction::EaseInOutCubic,
-        EasingFunction::EaseInElastic,
-        EasingFunction::EaseOutElastic,
-        EasingFunction::EaseInOutElastic,
-        EasingFunction::EaseInBack,
-        EasingFunction::EaseOutBack,
-        EasingFunction::EaseInOutBack,
-        EasingFunction::EaseInBounce,
-        EasingFunction::EaseOutBounce,
-        EasingFunction::EaseInOutBounce,
-        EasingFunction::EaseInSine,
-        EasingFunction::EaseOutSine,
-        EasingFunction::EaseInOutSine,
-        EasingFunction::EaseInExpo,
-        EasingFunction::EaseOutExpo,
-        EasingFunction::EaseInOutExpo,
-    ];
+    const ALL: [EasingFunction; 22] = EasingFunction::all();
 
     #[test]
     fn all_easings_anchor_at_endpoints() {
@@ -264,6 +312,42 @@ mod tests {
                 prev = cur;
             }
         }
+    }
+
+    #[test]
+    fn all_returns_every_variant_exactly_once() {
+        // Sanity-check the const list: every variant must appear and the size
+        // must match the enum count so adding a variant without updating
+        // `all()` is caught by the test suite.
+        let all = EasingFunction::all();
+        assert_eq!(all.len(), 22);
+        // Confirm no duplicates: every variant must be distinct. (Enum is not
+        // Hash, so use an O(n^2) PartialEq scan instead of a HashSet.)
+        for (i, a) in all.iter().enumerate() {
+            for b in &all[i + 1..] {
+                assert!(a != b, "duplicate variant in EasingFunction::all(): {a:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn from_str_roundtrips_for_every_variant() {
+        // Each variant must round-trip via its PascalCase Debug name, the
+        // exact string preset RON files use.
+        for f in EasingFunction::all() {
+            let name = format!("{f:?}");
+            assert_eq!(
+                EasingFunction::from_str(&name),
+                Some(f),
+                "round-trip failed for {f:?} via PascalCase name `{name}`",
+            );
+        }
+        // Spot-check a kebab-case form and a clearly invalid input.
+        assert_eq!(
+            EasingFunction::from_str("ease-out-elastic"),
+            Some(EasingFunction::EaseOutElastic)
+        );
+        assert_eq!(EasingFunction::from_str("not-a-real-easing"), None);
     }
 
     #[test]
