@@ -1,6 +1,6 @@
 [package]
 name = "fyrox-juice-free"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Game juice effects pack for the Fyrox engine - screen shake, hit stop, tweens, and more (free version)"
 license = "MIT"
