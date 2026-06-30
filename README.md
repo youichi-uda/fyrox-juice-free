@@ -102,9 +102,10 @@ MIT
 |---------|------|-----|
 | All 17 core scripts | :white_check_mark: | :white_check_mark: |
 | 22 easing functions | :white_check_mark: | :white_check_mark: |
-| Editor UI integration | :x: | :white_check_mark: |
-| Effect preset library | :x: | :white_check_mark: |
-| Advanced configuration wizard | :x: | :white_check_mark: |
+| Editor preset browser (one-click apply) | :x: | :white_check_mark: |
+| 15 built-in effect presets | :x: | :white_check_mark: |
+| Effect Chain script (combos) | :x: | :white_check_mark: |
+| RON-based custom preset loading | :x: | :white_check_mark: |
 | Priority support & updates | :x: | :white_check_mark: |
 
-:point_right: **[Get Fyrox Juice Pro on Gumroad](https://gumroad.com/)** (coming soon)
+:point_right: **[Get Fyrox Juice Pro on itch.io](https://y1uda.itch.io/fyrox-juice-pro)**
